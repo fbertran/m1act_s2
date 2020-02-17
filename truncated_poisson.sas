@@ -54,7 +54,7 @@ proc genmod data=skunk;
  %tpr;
  frequency freq;
  class sex year;
- model count = sex year year*sex / obstats type1 type3;
+ model count = sex year year*sex / obstats type1 type3 scale=pearson;
 * ods html exclude obstats;
  ods output obstats=fitted;
 run;
@@ -86,3 +86,86 @@ run;
 proc print noobs;
  var yr sx lambda se lamlow lamup p0 sep0 p0low p0up;
 run;
+
+
+
+
+
+
+
+
+
+
+
+
+data rearrest;
+INFILE DATALINES DELIMITER=' ';
+ input count freq Expelled $ Type $ @@;
+ ex =Expelled; ty=Type; /* make copies of YEAR and SEX */
+ label
+  count='count'
+  freq='frequency'
+  Expelled='Not Eff Other'
+  Type='Obs Exp';
+ datalines;
+1 2755 Not Obs 1 2693 Not Exp 1 2431 Eff Obs 1 2423 Eff Exp 1 654 Other Obs
+1 652 Other Exp 2 251 Not Obs 2 349 Not Exp 2 52 Eff Obs 2 65 Eff Exp
+2 57 Other Obs 2 61 Other Exp 3 46 Not Obs 3 30 Not Exp 3 4 Eff Obs 3 1 Eff Exp
+3 6 Other Obs 3 4 Other Exp 4 18 Not Obs 4 2 Not Exp 4 1 Eff Obs 5 2 Not Obs
+5 1 Eff Obs 6 2 Not Obs
+run;
+
+proc genmod data=rearrest;
+ %tpr;
+ frequency freq;
+ class Expelled;
+ model count = Expelled / obstats type1 type3 noscale;
+ ods output obstats=fitted;
+run;
+
+
+proc genmod data=rearrest;
+ %tpr;
+ frequency freq;
+ class Expelled;
+ model count = Expelled / obstats type1 type3 scale=pearson;
+ ods output obstats=fitted;
+run;
+
+data fit2;
+ set fitted;
+ drop Expelled;
+run;
+
+data both;
+ merge rearrest fit2;
+ lambda = exp(xbeta);
+ p0 = exp(-lambda);
+ lamup=exp(xbeta+1.96*std);
+ lamlow=exp(xbeta-1.96*std);
+ p0up=exp(-lamlow);
+    p0low=exp(-lamup);
+ se=std*lambda;
+ sep0=std*lambda*p0;
+run;
+
+proc sort data=rearrest;
+	by ex;
+run;
+
+
+proc sort data=both;
+	by ex;
+run;
+
+data both;
+ set both;
+ by ex;
+ if not first.ex then delete;
+run;
+
+proc print noobs;
+ var ex lambda se lamlow lamup p0 sep0 p0low p0up;
+run;
+
+
